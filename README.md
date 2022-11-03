@@ -1,2 +1,2 @@
-# fastapi_notes
-fastapi web framework learning notes.
+# FastAPI框架学习
+
