@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>测试页面</title>
+    <script
+      src="https://code.jquery.com/jquery-3.6.3.min.js"
+      integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU="
+      crossorigin="anonymous"
+    ></script>
+  </head>
+  <body>
+    <h1>测试页面</h1>
+  </body>
+  <script>
+    $(() => {
+      let a = $.ajax("http://127.0.0.1:8000/", {
+        type: "GET",
+        dataType: "json",
+        headers: { Accept: "application/json" },
+      }).done((data) => {
+        console.log(data);
+      });
+
+      console.log(a);
+      a.done((data) => {
+        console.log(data);
+      });
+    });
+  </script>
+</html>
