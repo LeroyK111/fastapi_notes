@@ -945,12 +945,6 @@ https://fastapi.tiangolo.com/zh/tutorial/testing/
 
 
 
-
-
-
-
-
-
 ## 启动服务
 
 官网：https://www.uvicorn.org/		
@@ -985,9 +979,35 @@ $ uvicorn --help
 
 **★具体生产部署，请看[部署](#部署) **
 
+
+
+### 调试一般放在这里
+
+https://fastapi.tiangolo.com/zh/tutorial/debugging/
+
+需要配置主入口
+
+```
+import uvicorn
+from fastapi import FastAPI
+
+app = FastAPI()
+
+
+@app.get("/")
+def root():
+    a = "a"
+    b = "b" + a
+    return {"hello world": b}
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+```
+
+
+
 ## 进阶
-
-
 
 ### 大型项目构成
 
@@ -1011,6 +1031,50 @@ https://fastapi.tiangolo.com/tutorial/bigger-applications/#include-an-apirouter-
 ```
 
 
+
+### 路径高级操作
+
+
+
+
+
+### 自定义响应
+
+
+
+
+
+### 高级依赖
+
+高级钩子hoocks。
+
+
+
+### 高级中间件
+
+
+
+
+
+
+
+### ★websocket
+
+流媒体传输
+
+
+
+
+
+### ★graphql
+
+新一代动态接口。
+
+
+
+### HTML模板
+
+主要指代jinja2
 
 
 
