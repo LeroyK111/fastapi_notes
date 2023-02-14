@@ -58,3 +58,7 @@ async def send_notification(
     # !支持多次任务
     # background_tasks.add_task(write_log, message)
     return {"message": "Message sent"}
+
+
+
+# 这里我们选择一个ssr渲染实现

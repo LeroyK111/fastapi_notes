@@ -666,6 +666,71 @@ async def check_err(item_id: str):
 
 https://fastapi.tiangolo.com/zh/tutorial/handling-errors/
 
+#### 基础异常
+
+```
+from fastapi import FastAPI, HTTPException
+
+app = FastAPI()
+
+items = {"foo": "The Foo Wrestlers"}
+
+
+@app.get("/items/{item_id}")
+async def read_item(item_id: str):
+    if item_id not in items:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"item": items[item_id]}
+```
+
+#### 自定义异常
+
+```
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+
+
+class UnicornException(Exception):
+    def __init__(self, name: str):
+        self.name = name
+
+
+app = FastAPI()
+
+
+@app.exception_handler(UnicornException)
+async def unicorn_exception_handler(request: Request, exc: UnicornException):
+    return JSONResponse(
+        status_code=418,
+        content={"message": f"Oops! {exc.name} did something. There goes a rainbow..."},
+    )
+
+
+@app.get("/unicorns/{name}")
+async def read_unicorn(name: str):
+    if name == "yolo":
+        raise UnicornException(name=name)
+    return {"unicorn_name": name}
+```
+
+
+
+#### SPA单页面
+
+404响应必须重定向到根路径上，不然单页SPA应用就无法路由。hash模式除外。我们需要覆盖fastapi的默认404异常，并重定向到/root根路径。
+
+```
+# !解决SPA单页面问题，重定向到根路径
+@app.exception_handler(exc_class_or_status_code=404)
+async def validation_exception_handler(request, exc):
+    return RedirectResponse("/")
+
+
+@app.get("/")
+async def main():
+    return {"main": "ok"}
+```
+
 ### 路径操作配置
 
 标签配置：如果不配置标签，则http://127.0.0.1:8000/docs# 生成的API文档会出现问题我，从router 到 url 等等。
@@ -1432,17 +1497,292 @@ https://fastapi.tiangolo.com/tutorial/bigger-applications/#include-an-apirouter-
 │       └── admin.py     # "admin" submodule, e.g. import app.internal.admin
 ```
 
-
-
 ### 路径高级操作
 
+不太需要，只是openapi的细节设置。
 
-
-
+https://fastapi.tiangolo.com/zh/advanced/path-operation-advanced-configuration/
 
 ### 自定义响应
 
+#### JSONResponse
 
+如果你想要返回主要状态码之外的状态码，你可以通过直接返回一个 `Response` 来实现，比如 `JSONResponse`，然后直接设置额外的状态码。
+
+例如，假设你想有一个 *路径操作* 能够更新条目，并且更新成功时返回 200 「成功」 的 HTTP 状态码。
+
+但是你也希望它能够接受新的条目。并且当这些条目不存在时，会自动创建并返回 201 「创建」的 HTTP 状态码。
+
+要实现它，导入 `JSONResponse`，然后在其中直接返回你的内容，并将 `status_code` 设置为为你要的值。
+
+```
+from typing import Union
+
+from fastapi import Body, FastAPI, status
+from fastapi.responses import JSONResponse
+
+app = FastAPI()
+
+items = {"foo": {"name": "Fighters", "size": 6}, "bar": {"name": "Tenders", "size": 3}}
+
+
+@app.put("/items/{item_id}")
+async def upsert_item(
+    item_id: str,
+    name: Union[str, None] = Body(default=None),
+    size: Union[int, None] = Body(default=None),
+):
+    if item_id in items:
+        item = items[item_id]
+        item["name"] = name
+        item["size"] = size
+        return item
+    else:
+        item = {"name": name, "size": size}
+        items[item_id] = item
+        return JSONResponse(status_code=status.HTTP_201_CREATED, content=item)
+```
+
+#### Response
+
+自定义响应
+
+```
+from fastapi import FastAPI, Response
+
+app = FastAPI()
+
+
+@app.get("/legacy/")
+def get_legacy_data():
+    data = """<?xml version="1.0"?>
+    <shampoo>
+    <Header>
+        Apply shampoo here.
+    </Header>
+    <Body>
+        You'll have to use soap here.
+    </Body>
+    </shampoo>
+    """
+    return Response(content=data, media_type="application/xml")
+```
+
+#### ORJSONResponse
+
+高性能json序列化器
+
+```
+pip install --upgrade orjson
+```
+
+```
+from fastapi import FastAPI
+from fastapi.responses import ORJSONResponse
+
+app = FastAPI()
+
+
+@app.get("/items/", response_class=ORJSONResponse)
+async def read_items():
+    return ORJSONResponse([{"item_id": "Foo"}])
+```
+
+#### HTMLResponse
+
+```
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
+
+app = FastAPI()
+
+
+@app.get("/items/", response_class=HTMLResponse)
+async def read_items():
+    return """
+    <html>
+        <head>
+            <title>Some HTML in here</title>
+        </head>
+        <body>
+            <h1>Look ma! HTML!</h1>
+        </body>
+    </html>
+    """
+```
+
+```
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
+
+app = FastAPI()
+
+
+def generate_html_response():
+    html_content = """
+    <html>
+        <head>
+            <title>Some HTML in here</title>
+        </head>
+        <body>
+            <h1>Look ma! HTML!</h1>
+        </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content, status_code=200)
+
+
+@app.get("/items/", response_class=HTMLResponse)
+async def read_items():
+    return generate_html_response()
+```
+
+#### PlainTextResponse
+
+纯文本响应
+
+```
+from fastapi import FastAPI
+from fastapi.responses import PlainTextResponse
+
+app = FastAPI()
+
+
+@app.get("/", response_class=PlainTextResponse)
+async def main():
+    return "Hello World"
+```
+
+#### RedirectResponse
+
+重定向
+
+```
+from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
+
+app = FastAPI()
+
+
+@app.get("/typer")
+async def redirect_typer():
+    return RedirectResponse("https://typer.tiangolo.com")
+```
+
+#### 流媒体，流式传输响应
+
+```
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
+
+app = FastAPI()
+
+
+async def fake_video_streamer():
+    for i in range(10):
+        yield b"some fake video bytes"
+
+
+@app.get("/")
+async def main():
+    return StreamingResponse(fake_video_streamer())
+```
+
+#### 文件响应
+
+```
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
+
+some_file_path = "large-video-file.mp4"
+app = FastAPI()
+
+
+@app.get("/")
+def main():
+    def iterfile():  # (1)
+        with open(some_file_path, mode="rb") as file_like:  # (2)
+            yield from file_like  # (3)
+
+    return StreamingResponse(iterfile(), media_type="video/mp4")
+```
+
+```
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
+
+some_file_path = "large-video-file.mp4"
+app = FastAPI()
+
+
+@app.get("/")
+async def main():
+    return FileResponse(some_file_path)
+```
+
+### 附加响应
+
+**如果您从FastAPI**开始，您可能不需要这个。
+
+https://fastapi.tiangolo.com/zh/advanced/additional-responses/
+
+
+
+### 响应cookies
+
+一般响应中不需要cookies，只有request常用。推荐token鉴权。
+
+```
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+
+app = FastAPI()
+
+
+@app.post("/cookie/")
+def create_cookie():
+    content = {"message": "Come to the dark side, we have cookies"}
+    response = JSONResponse(content=content)
+    response.set_cookie(key="fakesession", value="fake-cookie-session-value")
+    return response
+```
+
+### 高级响应头
+
+这个一般是请求头需要，响应头不太需要。
+
+```
+from fastapi import FastAPI, Response
+
+app = FastAPI()
+
+
+@app.get("/headers-and-object/")
+def get_headers(response: Response):
+    response.headers["X-Cat-Dog"] = "alone in the world"
+    return {"message": "Hello World"}
+```
+
+### 修改响应状态码
+
+这个常用，要记一下。
+
+```
+from fastapi import FastAPI, Response, status
+
+app = FastAPI()
+
+tasks = {"foo": "Listen to the Bar Fighters"}
+
+# 默认响应状态码
+@app.put("/get-or-create-task/{task_id}", status_code=200)
+def get_or_create_task(task_id: str, response: Response):
+    if task_id not in tasks:
+        # 临时修改状态码
+        tasks[task_id] = "This didn't exist before"
+        response.status_code = status.HTTP_201_CREATED
+    return tasks[task_id]
+```
 
 
 
@@ -1450,19 +1790,170 @@ https://fastapi.tiangolo.com/tutorial/bigger-applications/#include-an-apirouter-
 
 高级钩子hoocks。
 
+https://fastapi.tiangolo.com/zh/advanced/advanced-dependencies/
 
-
-### 高级中间件
-
-
-
+就是高级class对象操作。不常用
 
 
 
+### ☆Request对象
+
+直接获取全部请求对象，除了headers，cookie，localstore，还有客户端的IP/Port/dns/client type等
+
+这个常用来做黑名单。
+
+```
+from fastapi import FastAPI, Request
+
+app = FastAPI()
+
+
+@app.get("/items/{item_id}")
+def read_root(item_id: str, request: Request):
+    client_host = request.client.host
+    return {"client_host": client_host, "item_id": item_id}
+```
+
+### ☆高级中间件
+
+https://fastapi.tiangolo.com/zh/advanced/middleware/
+
+可以使用全部ASGI中间件，需要找一找。
+
+https://www.starlette.io/middleware/
+
+#### session中间件
+
+SessionMiddleware 可能会在SSR中需要。
+
+### 使用数据类
+
+不好用，表单验证过后，直接可以入库。
+
+```
+from dataclasses import dataclass
+from typing import Union
+
+from fastapi import FastAPI
+
+
+@dataclass
+class Item:
+    name: str
+    price: float
+    description: Union[str, None] = None
+    tax: Union[float, None] = None
+
+
+app = FastAPI()
+
+
+@app.post("/items/")
+async def create_item(item: Item):
+    return item
+```
+
+### 推荐使用异步数据库
+
+aiomysql
+
+[asyncpg](https://github.com/MagicStack/asyncpg)
+
+aiopg
+
+Motor
+
+redis
+
+
+
+### 挂在子应用
+
+https://fastapi.tiangolo.com/zh/advanced/sub-applications/
+
+非子路由，容易和子路由混淆。性能下降。。。。
+
+```
+from fastapi import FastAPI
+
+app = FastAPI()
+
+
+@app.get("/app")
+def read_main():
+    return {"message": "Hello World from main app"}
+
+
+subapi = FastAPI()
+
+
+@subapi.get("/sub")
+def read_sub():
+    return {"message": "Hello World from sub API"}
+
+
+app.mount("/subapi", subapi)
+```
 
 ### ★websocket
 
 流媒体传输
+
+```
+pip install websockets
+```
+
+重点来了，这里就涉及到多媒体技术了，我们选择的比较成熟的HLS视频协议，对直播和点播都有效果。
+
+等我补充完js socket的笔记后，再来一起试一试。
+
+
+
+
+
+### app生命周期
+
+https://fastapi.tiangolo.com/zh/advanced/events/
+
+app启动前，触发的事件。
+
+```
+from fastapi import FastAPI
+
+app = FastAPI()
+
+items = {}
+
+
+@app.on_event("startup")
+async def startup_event():
+    items["foo"] = {"name": "Fighters"}
+    items["bar"] = {"name": "Tenders"}
+
+
+@app.get("/items/{item_id}")
+async def read_items(item_id: str):
+    return items[item_id]
+```
+
+app结束后的事件
+
+```
+from fastapi import FastAPI
+
+app = FastAPI()
+
+
+@app.on_event("shutdown")
+def shutdown_event():
+    with open("log.txt", mode="a") as log:
+        log.write("Application shutdown")
+
+
+@app.get("/items/")
+async def read_items():
+    return [{"name": "Foo"}]
+```
 
 
 
@@ -1472,13 +1963,81 @@ https://fastapi.tiangolo.com/tutorial/bigger-applications/#include-an-apirouter-
 
 新一代动态接口。
 
+https://fastapi.tiangolo.com/zh/advanced/graphql/
 
+```
+import strawberry
+from fastapi import FastAPI
+from strawberry.asgi import GraphQL
+
+
+@strawberry.type
+class User:
+    name: str
+    age: int
+
+
+@strawberry.type
+class Query:
+    @strawberry.field
+    def user(self) -> User:
+        return User(name="Patrick", age=100)
+
+
+schema = strawberry.Schema(query=Query)
+
+
+graphql_app = GraphQL(schema)
+
+app = FastAPI()
+app.add_route("/graphql", graphql_app)
+app.add_websocket_route("/graphql", graphql_app)
+```
 
 ### HTML模板
 
 主要指代jinja2
 
+https://fastapi.tiangolo.com/zh/advanced/templates/
 
+```
+pip install jinja2
+```
+
+```
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+app = FastAPI()
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+templates = Jinja2Templates(directory="templates")
+
+
+@app.get("/items/{id}", response_class=HTMLResponse)
+async def read_item(request: Request, id: str):
+    return templates.TemplateResponse("item.html", {"request": request, "id": id})
+```
+
+### 自定义请求和子路由
+
+https://fastapi.tiangolo.com/zh/advanced/custom-request-and-route/
+
+这个不常用啊。
+
+
+
+### 高级安全
+
+加盐加密，时间校验，ip校验，验证码也行。
+
+http基本身份验证，不常见了。多用于代理服务器。
+
+https://fastapi.tiangolo.com/zh/advanced/security/http-basic-auth/
 
 
 
@@ -1497,6 +2056,22 @@ https://fastapi.tiangolo.com/zh/async/
 ### 部署
 
 目前因为微服务的成熟，更好的做法是cloud容器化，然后kubernetes，实现单容器单进程，然后使用弹性云网关进行反向代理。
+
+#### ★记得关闭文档功能
+
+记得看这里
+
+https://fastapi.tiangolo.com/zh/advanced/behind-a-proxy/
+
+### 设置环境变量Env
+
+https://fastapi.tiangolo.com/zh/advanced/settings/
+
+需要的时候写一个就行，况且不太需要。。。
+
+一般来说走配置文件，比如现在推荐的config.toml，config.json等，
+
+
 
 #### 单服务器部署
 

@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Request
+from http.client import HTTPException
+from fastapi import FastAPI
 
 # 通过形参设置类型，可以直接进行表单验证
 from typing import Union
@@ -6,8 +7,9 @@ from enum import Enum
 
 import uvicorn
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import Response, JSONResponse, ORJSONResponse
+from fastapi.responses import Response, JSONResponse, ORJSONResponse, RedirectResponse
 
+from fastapi.exceptions import RequestValidationError
 
 # 使用跨域中间件
 from fastapi.middleware.cors import CORSMiddleware
@@ -85,6 +87,17 @@ app.mount("/assets", StaticFiles(html=True, directory="assets"), name="assets")
 # http://127.0.0.1:8000/assets/
 
 
+# !解决SPA单页面问题，重定向到根路径
+@app.exception_handler(exc_class_or_status_code=404)
+async def validation_exception_handler(request, exc):
+    return RedirectResponse("/")
+
+
+@app.get("/")
+async def main():
+    return {"main": "ok"}
+
+
 # *路径参数
 @app.get("/items/{item_id}")
 async def read_item(item_id):
@@ -133,13 +146,13 @@ fake_items_db = [{"item_name": "Foo"}, {"item_name": "Bar"}, {"item_name": "Baz"
 
 # !这里就是get传参的标准写法, 对应请求写法, http://127.0.0.1:8000/getPara/?skip=0&limit=10
 @app.get("/getPara/")
-async def read_item(skip: int = 0, limit: int = 10):
+async def read_item6(skip: int = 0, limit: int = 10):
     return fake_items_db[skip : skip + limit]
 
 
 # !可选参数，路径+get传参的结合，使用Union则可以声明其是否是可选参数，类似ts .?
 @app.get("/union/{item_id}")
-async def read_item(item_id: str, q: Union[str, None] = None, short: bool = False):
+async def read_item5(item_id: str, q: Union[str, None] = None, short: bool = False):
     if q:
         return {"item_id": item_id, "q": q, "short": short}
     return {"item_id": item_id}
