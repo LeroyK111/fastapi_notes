@@ -875,39 +875,279 @@ https://fastapi.tiangolo.com/zh/tutorial/body-updates/
 
 有种前端hoocks的感觉，但是功能更强大，复用所有逻辑，可以用来路由拦截，鉴权，数据库链接等。
 
+![image-20230214103534491](readme.assets/image-20230214103534491.png)
+
+普通钩子
+
+from fastapi import Depends 就可以在请求到来前操作参数。
+
+```
+from typing import Union
+
+from fastapi import Depends, FastAPI
+
+app = FastAPI()
 
 
+async def common_parameters(
+    q: Union[str, None] = None, skip: int = 0, limit: int = 100
+):
+    return {"q": q, "skip": skip, "limit": limit}
 
 
+@app.get("/items/")
+async def read_items(commons: dict = Depends(common_parameters)):
+    return commons
 
+
+@app.get("/users/")
+async def read_users(commons: dict = Depends(common_parameters)):
+    return commons
+```
+
+![image-20230214103804445](readme.assets/image-20230214103804445.png)
+
+钩子之间可以互相嵌套。。。
+
+遵从先后顺序，最里层的最先被验证。
+
+```
+from typing import Union
+
+from fastapi import Cookie, Depends, FastAPI
+
+app = FastAPI()
+
+
+def query_extractor(q: Union[str, None] = None):
+    return q
+
+
+def query_or_cookie_extractor(
+    q: str = Depends(query_extractor),
+    last_query: Union[str, None] = Cookie(default=None),
+):
+    if not q:
+        return last_query
+    return q
+
+
+@app.get("/items/")
+async def read_query(query_or_default: str = Depends(query_or_cookie_extractor)):
+    return {"q_or_cookie": query_or_default}
+```
+
+### 拦截器
+
+没有参数返回，只是做一个鉴权。
+
+路由拦截器
+
+```
+from fastapi import Depends, FastAPI, Header, HTTPException
+
+app = FastAPI()
+
+
+async def verify_token(x_token: str = Header()):
+    if x_token != "fake-super-secret-token":
+        raise HTTPException(status_code=400, detail="X-Token header invalid")
+
+
+async def verify_key(x_key: str = Header()):
+    if x_key != "fake-super-secret-key":
+        raise HTTPException(status_code=400, detail="X-Key header invalid")
+    return x_key
+
+
+@app.get("/items/", dependencies=[Depends(verify_token), Depends(verify_key)])
+async def read_items():
+    return [{"item": "Foo"}, {"item": "Bar"}]
+```
+
+全局拦截器
+
+在main.py上写就行。
+
+![image-20230214123001727](readme.assets/image-20230214123001727.png)
 
 ## 安全验证
 
+OpenAPI（以前称为 Swagger）是用于构建 API 的开放规范（现已成为 Linux Foundation 的一部分）。
+
+**FastAPI** 基于 **OpenAPI**。
+
+这就是使多个自动交互式文档界面，代码生成等成为可能的原因。
+
+OpenAPI 有一种定义多个安全「方案」的方法。
+
+通过使用它们，你可以利用所有这些基于标准的工具，包括这些交互式文档系统。
+
+OpenAPI 定义了以下安全方案：
+
+- **apiKey**：一个特定于应用程序的密钥，可以来自：
+  - 查询参数。
+  - 请求头。
+  - cookie。
+
+- http：标准的 HTTP 身份认证系统，包括：
+  - `bearer`: 一个值为 `Bearer` 加令牌字符串的 `Authorization` 请求头。这是从 OAuth2 继承的。
+  - HTTP Basic 认证方式。
+  - HTTP Digest，等等。
+
+- oauth2：所有的 OAuth2 处理安全性的方式（称为「流程」）。 *以下几种流程适合构建 OAuth 2.0 身份认证的提供者（例如 Google，Facebook，Twitter，GitHub 等）： * implicit * clientCredentials * authorizationCode
+  - 但是有一个特定的「流程」可以完美地用于直接在同一应用程序中处理身份认证：
+    - `password`：接下来的几章将介绍它的示例。
+
+- openIdConnect：提供了一种定义如何自动发现 OAuth2 身份认证数据的方法。
+  - 此自动发现机制是 OpenID Connect 规范中定义的内容。
+
+https://fastapi.tiangolo.com/zh/tutorial/security/first-steps/
+
+根据不同需求使用不同的验证加密方式。这里我就不多介绍了。
+
+```
+from fastapi import Depends, FastAPI
+from fastapi.security import OAuth2PasswordBearer
+
+app = FastAPI()
+
+# 生成验证hoock
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
+@app.get("/items/")
+async def read_items(token: str = Depends(oauth2_scheme)):
+	# 数据库存储token临时令牌，然后当你需要跳转其他路由时，可以使用hoock拦截器验证权限
+    return {"token": token}
+```
 
+通常是需要结合表单验证模型一起使用。快速提取路径传参，get传参，post传参等等。
+
+需要跟前端约定好！当然，还是由后端负责安全，不然会出很多问题。
+
+毕竟永远不要信任前端的传来的任何数据。
 
 
 
 ## 中间件
 
+自定义中间件
+
+```
+import time
+
+from fastapi import FastAPI, Request
+
+app = FastAPI()
 
 
-#### CORS（跨域资源共享）
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    # 这里就是我自定义一个中间件
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
+```
+
+最佳位置
+
+![image-20230214152651836](readme.assets/image-20230214152651836.png)
+
+
+
+
+
+
+
+
+
+
+
+其他三方ASGI中间件
+
+https://fastapi.tiangolo.com/zh/advanced/middleware/
+
+### 强制证书
+
+HTTPSRedirectMiddleware 强制所有传入请求必须是`https`或`wss`。
+
+相反，任何传入的请求`http`或`ws`将被重定向到安全方案。
+
+
+
+### 防盗链
+
+TrustedHostMiddleware 强制所有传入请求都具有正确设置的`Host`标头，以防止 HTTP 主机标头攻击。
+
+
+
+### 标准流式处理文件上下传
+
+GZipMiddleware
+
+
+
+### CORS（跨域资源共享）
 
 https://fastapi.tiangolo.com/zh/tutorial/cors/
+
+```
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+origins = [
+    "http://localhost.tiangolo.com",
+    "https://localhost.tiangolo.com",
+    "http://localhost",
+    "http://localhost:8080",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/")
+async def main():
+    return {"message": "Hello World"}
+```
+
+支持以下参数：
+
+- `allow_origins` - 一个允许跨域请求的源列表。例如 `['https://example.org', 'https://www.example.org']`。你可以使用 `['*']` 允许任何源。
+- `allow_origin_regex` - 一个正则表达式字符串，匹配的源允许跨域请求。例如 `'https://.*\.example\.org'`。
+- `allow_methods` - 一个允许跨域请求的 HTTP 方法列表。默认为 `['GET']`。你可以使用 `['*']` 来允许所有标准方法。
+- `allow_headers` - 一个允许跨域请求的 HTTP 请求头列表。默认为 `[]`。你可以使用 `['*']` 允许所有的请求头。`Accept`、`Accept-Language`、`Content-Language` 以及 `Content-Type` 请求头总是允许 CORS 请求。
+- `allow_credentials` - 指示跨域请求支持 cookies。默认是 `False`。另外，允许凭证时 `allow_origins` 不能设定为 `['*']`，必须指定源。
+- `expose_headers` - 指示可以被浏览器访问的响应头。默认为 `[]`。
+- `max_age` - 设定浏览器缓存 CORS 响应的最长时间，单位是秒。默认为 `600`。
+
+中间件响应两种特定类型的 HTTP 请求……
 
 ## 数据库客户端
 
 ### 1.sql客户端
 
+https://fastapi.tiangolo.com/zh/tutorial/sql-databases/
+
+官方依然是推荐SQLAlchemy，当然你使用其他的库也是可以的。记得要节约资源就好。
+
 ### 2.nosql客户端
+
+redis, mongodb等等，都有自己的三方库可以使用，记得每次使用完毕，都要回收线程。
 
 ### 3.其他计算
 
-深度学习AI，消息中间件，任务中间件等等。
-
-
+深度学习AI，消息中间件，任务中间件等等。都可以集成起来。
 
 
 
@@ -916,6 +1156,35 @@ https://fastapi.tiangolo.com/zh/tutorial/cors/
 如果简单的话，就用自带的。难的话，就用celery。
 
 https://fastapi.tiangolo.com/zh/tutorial/background-tasks/
+
+```
+from fastapi import BackgroundTasks, Depends, FastAPI
+
+app = FastAPI()
+
+
+def write_log(message: str):
+    with open("log.txt", mode="a") as log:
+        log.write(message)
+
+
+def get_query(background_tasks: BackgroundTasks, q: str | None = None):
+    if q:
+        message = f"found query: {q}\n"
+        background_tasks.add_task(write_log, message)
+    return q
+
+
+@app.post("/send-notification/{email}")
+async def send_notification(
+    email: str, background_tasks: BackgroundTasks, q: str = Depends(get_query)
+):
+    message = f"message to {email}\n"
+    background_tasks.add_task(write_log, message)
+    # 可以继续添加任务
+     background_tasks.add_task(write_log, message)
+    return {"message": "Message sent"}
+```
 
 
 
@@ -927,13 +1196,125 @@ https://fastapi.tiangolo.com/zh/tutorial/metadata/
 
 文档可以直接本地存储成HTML下来，不涉及到本地资源。
 
+```
+from fastapi import FastAPI
 
+description = """
+ChimichangApp API helps you do awesome stuff. 🚀
+
+## Items
+
+You can **read items**.
+
+## Users
+
+You will be able to:
+
+* **Create users** (_not implemented_).
+* **Read users** (_not implemented_).
+"""
+
+app = FastAPI(
+    title="ChimichangApp",
+    description=description,
+    version="0.0.1",
+    terms_of_service="http://example.com/terms/",
+    contact={
+        "name": "Deadpoolio the Amazing",
+        "url": "http://x-force.example.com/contact/",
+        "email": "dp@x-force.example.com",
+    },
+    license_info={
+        "name": "Apache 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
+    },
+)
+
+
+@app.get("/items/")
+async def read_items():
+    return [{"name": "Katana"}]
+```
+
+![img](readme.assets/image01.png)
+
+标签元数据
+
+```
+from fastapi import FastAPI
+
+tags_metadata = [
+    {
+        "name": "users",
+        "description": "Operations with users. The **login** logic is also here.",
+    },
+    {
+        "name": "items",
+        "description": "Manage items. So _fancy_ they have their own docs.",
+        "externalDocs": {
+            "description": "Items external docs",
+            "url": "https://fastapi.tiangolo.com/",
+        },
+    },
+]
+
+app = FastAPI(openapi_tags=tags_metadata)
+
+
+@app.get("/users/", tags=["users"])
+async def get_users():
+    return [{"name": "Harry"}, {"name": "Ron"}]
+
+
+@app.get("/items/", tags=["items"])
+async def get_items():
+    return [{"name": "wand"}, {"name": "flying broom"}]
+```
+
+![img](readme.assets/image02.png)
+
+文档URL
+
+```
+from fastapi import FastAPI
+
+app = FastAPI(openapi_url="/api/v1/openapi.json")
+
+
+@app.get("/items/")
+async def read_items():
+    return [{"name": "Foo"}]
+```
+
+```
+from fastapi import FastAPI
+
+app = FastAPI(docs_url="/documentation", redoc_url=None)
+
+
+@app.get("/items/")
+async def read_items():
+    return [{"name": "Foo"}]
+```
 
 ## 静态文件代理
 
 理论上不需要，只需要配置好nginx，然后托管静态文件即可。
 
 https://fastapi.tiangolo.com/zh/tutorial/static-files/
+
+还需要SSR服务器渲染的话，那就自代理静态文件即可。
+
+```
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+
+app = FastAPI()
+
+# ！直接app.mount
+# 子路径，静态文件夹，名字等其他参数
+app.mount("/static", StaticFiles(directory="static"), name="static")
+```
 
 
 
@@ -942,6 +1323,27 @@ https://fastapi.tiangolo.com/zh/tutorial/static-files/
 一般不需要测试，除非甲方有要求。
 
 https://fastapi.tiangolo.com/zh/tutorial/testing/
+
+```
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+app = FastAPI()
+
+
+@app.get("/")
+async def read_main():
+    return {"msg": "Hello World"}
+
+
+client = TestClient(app)
+
+
+def test_read_main():
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.json() == {"msg": "Hello World"}
+```
 
 
 

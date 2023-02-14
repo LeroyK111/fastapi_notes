@@ -1,19 +1,80 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 
 # 通过形参设置类型，可以直接进行表单验证
 from typing import Union
 from enum import Enum
 
-
+import uvicorn
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response, JSONResponse, ORJSONResponse
+
+
+# 使用跨域中间件
+from fastapi.middleware.cors import CORSMiddleware
 
 
 # 导入路由包
 from routers import index
 
 
-app = FastAPI()
+from plugs.demo import plugs
+
+description = """
+ChimichangApp API helps you do awesome stuff. 🚀
+
+## Items
+
+You can **read items**.
+
+## Users
+
+You will be able to:
+
+* **Create users** (_not implemented_).
+* **Read users** (_not implemented_).
+"""
+
+
+app = FastAPI(
+    title="简单小项目",
+    description=description,
+    version="0.0.1",
+    terms_of_service="http://example.com/terms/",
+    contact={
+        "name": "Deadpoolio the Amazing",
+        "url": "http://x-force.example.com/contact/",
+        "email": "dp@x-force.example.com",
+    },
+    license_info={
+        "name": "Apache 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
+    },
+)
+
+# !全局拦截，直接这里写就完事
+# app = FastAPI(dependencies=[Depends(verify_token), Depends(verify_key)])
+
+
+origins = [
+    # "http://localhost.tiangolo.com",
+    # "https://localhost.tiangolo.com",
+    # "http://localhost",
+    # "http://localhost:8080",
+    "*"
+]
+
+# 添加中间件
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# !自定义中间件，还是放在这里吧，
+plugs(app)
+
 
 # !导入路由根组件，这里的做法，仿照的是vue和react
 app.include_router(index.router)
@@ -107,3 +168,7 @@ async def read_item(item_id: str, q: Union[str, None] = None, short: bool = Fals
 
 
 # uvicorn main:app --reload
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
