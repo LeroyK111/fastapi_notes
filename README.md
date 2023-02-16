@@ -1913,6 +1913,10 @@ pip install websockets
 websocket：专用于browser浏览器的ws套接字，流式链接。
 socket：服务器端只需要socket 然后开放 open port 即可。
 
+websocket 仅仅是应用层的TCP协议。
+
+如果真想实现UDP协议传输，本身存在很多问题，需要使用服务端配合。
+webRTC协议 https://webrtc.org/getting-started/firebase-rtc-codelab?hl=zh-cn
 
 #### 消息传输
 数据传输：流式数据链接，可以做聊天app，其中TCP/UDP都是可以用的。
@@ -2048,7 +2052,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int, token: str = 
         await manager.broadcast(f"Client #{client_id} left the chat")
 ```
 
-鉴权
+#### 鉴权
 
 1.send中发送消息时，携带token
 `let  ws = new WebSocket("ws://" + url + "/webSocketServer"); ws.onopen=() = >{ ws.send({token, message, data})}
@@ -2060,14 +2064,19 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int, token: str = 
 记得前后端的子协议保持一致，不然会出问题。
 `let ws = new WebSocket("ws://" + url+ "/webSocketServer",[token]);`
 
-#### 多媒体传输
-多媒体传输：主要是对视频or音频等文件切片后，流式传输，加快前端响应速度。主流协议HLS切片播放。
+#### ★多媒体传输
+多媒体传输：主要是对视频or音频等文件切片后，流式传输，加快前端响应速度。
+HLS基于HTTP协议实现，传输内容包括两部分，一是M3U8描述文件，二是TS媒体文件。
 
+播放器自定义 video.js，这个要二次开发才能用。
 
+HLS主流切片协议分发 HLS.js
 
+无需flash播放器 flv.js
 
+视频转换器 FFmpeg，这里要交给后端任务队列去处理。
 
-
+现成的一款弹幕播放器 https://github.com/oyuyue/nplayer
 
 
 
