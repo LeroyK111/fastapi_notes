@@ -1,5 +1,3 @@
 # 干掉大于50mb文件，二进制缓存
 __pycache__
-
-
-
+.obsidian

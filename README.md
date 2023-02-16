@@ -65,6 +65,11 @@ DELETE：删除数据。
 
 #### 路径传参
 
+<span style="color: red;">记住/url和/url/是不同的两个路径，虽然请求/url/同样会返回数据，但是会发生临时重定向
+`307 Temporary Redirect`
+解决这个问题，可以通过异常，拦截，中间件等方法解决。</span>
+
+
 ```
 @app.get("/items/{item_id}")
 async def read_item(item_id):
@@ -1903,9 +1908,164 @@ app.mount("/subapi", subapi)
 pip install websockets
 ```
 
-重点来了，这里就涉及到多媒体技术了，我们选择的比较成熟的HLS视频协议，对直播和点播都有效果。
+重点来了，这里就涉及到多媒体技术了，我们一般选择的比较成熟的HLS视频协议，对直播和点播都有效果。
 
-等我补充完js socket的笔记后，再来一起试一试。
+websocket：专用于browser浏览器的ws套接字，流式链接。
+socket：服务器端只需要socket 然后开放 open port 即可。
+
+
+#### 消息传输
+数据传输：流式数据链接，可以做聊天app，其中TCP/UDP都是可以用的。
+
+```
+  
+# !有bug存在，/ws/ 和 /ws 是不同的表示
+
+@router.websocket("/ws")
+
+async def websocket1(websocket: WebSocket):
+
+    await websocket.accept()
+
+    while True:
+
+        # 持续接收参数
+
+        data = await websocket.receive_text()
+
+        print("接收数据:", data)
+
+        await websocket.send_text(f"{data}")
+
+  
+  
+
+class ConnectionManager:
+
+    def __init__(self):
+
+        # websocket连接池
+
+        self.active_connections: List[WebSocket] = []
+
+  
+
+    async def connect(self, websocket: WebSocket, token):
+
+        # 等待链接，由于存在token是以子协议的方式传递。我们也得走子协议
+
+        await websocket.accept(subprotocol=token)
+
+        # 将联入的客户端加入列表
+
+        self.active_connections.append(websocket)
+
+  
+
+    def disconnect(self, websocket: WebSocket):
+
+        # 删除客户端
+
+        self.active_connections.remove(websocket)
+
+  
+
+    async def send_personal_message(self, message: str, websocket: WebSocket):
+
+        # 单一客户端发送
+
+        await websocket.send_text(message)
+
+  
+
+    async def broadcast(self, message: str):
+
+        # 这里就是广播了，给所有客户端发送
+
+        for connection in self.active_connections:
+
+            await connection.send_text(message)
+
+  
+  
+
+manager = ConnectionManager()
+
+  
+  
+
+# 加入钩子，验证token是否正确.
+
+async def get_cookie_or_token(websocket: WebSocket):
+
+    # 通过子协议头获取token
+
+    token = websocket.headers.get("sec-websocket-protocol")
+
+  
+
+    if token != "123":
+
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
+
+  
+
+    return token
+
+  
+  
+
+@router.websocket("/ws3/{client_id}")
+
+async def websocket_endpoint(websocket: WebSocket, client_id: int, token: str = Depends(get_cookie_or_token)):
+
+    # 开始接收链接
+
+    await manager.connect(websocket, token)
+
+    try:
+
+        while True:
+
+            # 接收文本数据
+
+            data = await websocket.receive_text()
+
+            # 单数据
+
+            await manager.send_personal_message(f"You wrote: {data}", websocket)
+
+            await manager.broadcast(f"Client #{client_id} says: {data}")
+
+    # 这里的异常才是关键
+
+    except WebSocketDisconnect:
+
+        manager.disconnect(websocket)
+
+        # 谁出问题，谁挂断
+
+        await manager.broadcast(f"Client #{client_id} left the chat")
+```
+
+鉴权
+
+1.send中发送消息时，携带token
+`let  ws = new WebSocket("ws://" + url + "/webSocketServer"); ws.onopen=() = >{ ws.send({token, message, data})}
+`
+2.url传参token
+`let ws = new WebSocket("ws://" + url+ "/?token=123");`
+
+3.基于协议头添加token
+记得前后端的子协议保持一致，不然会出问题。
+`let ws = new WebSocket("ws://" + url+ "/webSocketServer",[token]);`
+
+#### 多媒体传输
+多媒体传输：主要是对视频or音频等文件切片后，流式传输，加快前端响应速度。主流协议HLS切片播放。
+
+
+
+
 
 
 

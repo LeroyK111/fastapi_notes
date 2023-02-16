@@ -1,20 +1,68 @@
 <!DOCTYPE html>
 <html lang="zh_cn">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <link
+      rel="shortcut icon"
+      href="https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg"
+      type="image/x-icon"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>前端测试页面</title>
-    <link rel="stylesheet" href="css/index.css">
-    <script src="https://code.jquery.com/jquery-3.6.3.min.js" integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU=" crossorigin="anonymous"></script>
-</head>
-<body>
+    <link rel="stylesheet" href="css/index.css" />
+    <script
+      src="https://code.jquery.com/jquery-3.6.3.min.js"
+      integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU="
+      crossorigin="anonymous"
+    ></script>
+  </head>
+  <body>
     <h1>仅仅用来测试，让fastapi代理静态文件</h1>
-</body>
-<script>
-    $(()=>{
-        // alert("测试")
-        console.log("测试一下前端js");
-    })
-</script>
+    <article>
+      <section>输入:<input type="text" name="" id="input" /></section>
+      <section>
+        输出:<input
+          type="text"
+          name=""
+          id="output"
+          value="这里会输出所有的输入，通过socket"
+        />
+      </section>
+    </article>
+  </body>
+  <script>
+    $(() => {
+      const num = Math.random().toFixed(3) * 1000;
+
+      // 这里的子协议protocols
+      const ws = new WebSocket(`ws://127.0.0.1:8000/two/ws3/${num}`, ['123']);
+
+      // 向服务器发送消息
+      ws.addEventListener("open", () => {
+        $("#input").on("input", (e) => {
+          const message = e.target.value;
+          ws.send(message);
+        });
+      });
+
+      ws.addEventListener("message", (e) => {
+        output(e);
+      });
+
+      function output(e) {
+        console.log(e.data);
+        $("#output").val(e.data);
+      }
+
+      $(window).on({
+        onubload: () => {
+          ws.close();
+        },
+        onbeforeunload: () => {
+          ws.close();
+        },
+      });
+    });
+  </script>
 </html>
