@@ -1,12 +1,13 @@
 # 引入类型提示
-from typing import Union
+from typing import Any, Union
 
 # 导入包
-from fastapi import FastAPI
+from fastapi import Body, FastAPI
 
 # 解决跨域问题
 from fastapi.middleware.cors import CORSMiddleware
 
+from pydantic import BaseModel
 import uvicorn
 
 # 实力一个应用
@@ -52,9 +53,38 @@ async def read_item(item_id: int, q: Union[str, None] = None):
     return {"item_id": item_id, "q": q}
 
 
+class Item(BaseModel):
+    name: str
+    description: str | None = None
+    price: float
+    tax: float | None = None
+
+
+"""
+request post body
+{
+    "name": "Foo",
+    "description": "An optional description",
+    "price": 45.2,
+    "ta": 0.1
+}
+"""
+
+
+@app.post("/")
+async def create_item(item: Item):
+    return item
+
+
+# 不做类型检测, 获取全部参数
+@app.post("/agv")
+async def create_item(item: Any = Body()):
+    return item
+
+
 # 启动服务
 # uvicorn main:app --reload
 
 # 直接python执行也行
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=5000, log_level="info")
+    uvicorn.run("main:app", host="127.0.0.1", port=5000, log_level="info", reload=True)
