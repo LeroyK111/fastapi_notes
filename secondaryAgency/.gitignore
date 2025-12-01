@@ -1,0 +1,144 @@
+# ==========================
+# Python 核心编译/缓存文件
+# ==========================
+# 字节码文件（Python 2/3 编译产物）
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 打包/分发相关文件
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+*.whl  # pip 生成的 wheel 包
+*.tar.gz  # 源码包
+
+# ==========================
+# 虚拟环境（必忽略！）
+# ==========================
+# pip/virtualenv 虚拟环境
+venv/
+env/
+ENV/
+*.venv/
+
+# conda 虚拟环境（适配你的 anaconda 环境）
+envs/
+.conda/
+conda-env.yml
+conda-meta/
+pkgs/
+
+# poetry 虚拟环境
+.poetry/
+dist/
+build/
+
+# pipenv 虚拟环境
+.Pipfile/
+Pipfile.lock
+
+# ==========================
+# IDE/编辑器配置文件
+# ==========================
+# VS Code
+.vscode/
+*.code-workspace
+__pycache__/
+.ipynb_checkpoints/  # Jupyter Notebook 检查点
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Sublime Text
+*.sublime-*
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Atom
+.atom/
+
+# ==========================
+# 日志/缓存/临时文件
+# ==========================
+# 日志文件
+*.log
+logs/
+log/
+
+# 缓存文件
+.pytest_cache/  # pytest 测试缓存
+.mypy_cache/    # mypy 类型检查缓存
+.ruff_cache/    # ruff 代码检查缓存
+.cache/
+__pycache__/
+
+# 临时文件
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+.DS_Store  # macOS 系统文件
+Thumbs.db  # Windows 系统文件
+
+# ==========================
+# 敏感配置/环境变量文件
+# ==========================
+# 环境变量配置（含密钥、密码等，必忽略！）
+.env
+.env.local
+.env.*
+!.env.example  # 保留示例配置文件（无敏感信息）
+
+# 配置文件（如需跟踪请删除对应行）
+config.json
+settings.ini
+*.conf
+*.cfg
+
+# ==========================
+# 测试/覆盖率相关
+# ==========================
+.coverage  # 测试覆盖率文件
+coverage.xml
+htmlcov/  # 覆盖率报告目录
+.nosetests.xml
+.tox/  # tox 测试工具目录
+.nox/
+.pytest/
+
+# ==========================
+# 其他 Python 工具相关
+# ==========================
+# mypy 类型检查配置
+.mypy.ini
+mypy.ini
+
+# ruff/flake8 代码检查配置（如需跟踪请删除）
+.ruff.toml
+.flake8
+.pylintrc
+
+# black 格式化配置
+.pyproject.toml
